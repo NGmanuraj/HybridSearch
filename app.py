@@ -3,11 +3,20 @@ from langchain_community.retrievers import PineconeHybridSearchRetriever
 from pinecone import Pinecone, ServerlessSpec
 from pinecone_text.sparse import BM25Encoder
 from langchain_huggingface import HuggingFaceEmbeddings
+import nltk
+nltk.download('punkt_tab')
+
 import os
+from dotenv import load_dotenv
+
+# Load environment variables from the .env file
+load_dotenv()
+
+# Retrieve the Pinecone API key from environment variables
+api_key = os.getenv("PINECONE_API_KEY") 
+index_name = "hybrid-search-langchain-pinecone"
 
 # Initialize the Pinecone client
-api_key = "5467e6f2-b135-4a07-b237-b92fb467feb3"
-index_name = "hybrid-search-langchain-pinecone"
 pc = Pinecone(api_key=api_key)
 
 # Create the index if it doesn't exist
@@ -21,10 +30,7 @@ if index_name not in pc.list_indexes().names():
 
 index = pc.Index(index_name)
 
-# Load environment variables
-from dotenv import load_dotenv
-load_dotenv()
-
+# Load environment variables for HuggingFace token
 os.environ["HF_TOKEN"] = os.getenv("HF_TOKEN")
 
 # Set up embeddings and BM25 encoder
@@ -38,7 +44,7 @@ sentences = [
     "In 2021, I visited New Orleans",
 ]
 
-# Fit the BM25 encoder
+# Fit and save the BM25 encoder
 bm25_encoder.fit(sentences)
 bm25_encoder.dump("bm25_values.json")
 
@@ -46,7 +52,11 @@ bm25_encoder.dump("bm25_values.json")
 bm25_encoder = BM25Encoder().load("bm25_values.json")
 
 # Set up the retriever
-retriever = PineconeHybridSearchRetriever(embeddings=embeddings, sparse_encoder=bm25_encoder, index=index)
+retriever = PineconeHybridSearchRetriever(
+    embeddings=embeddings,
+    sparse_encoder=bm25_encoder,
+    index=index
+)
 
 # Add texts to the index
 retriever.add_texts(sentences)
@@ -60,4 +70,4 @@ if st.button("Search"):
     if results:
         st.write("Top Search Result:", results[0].page_content)
     else:
-        st.write("No results found.")
+        st.write("No results found.")
